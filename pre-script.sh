@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -x
 
 # Login to Azure
 az login
@@ -6,7 +6,7 @@ az login
 # Set your subscription
 az account set --subscription <SubscriptionId>
 
-# Create a service principal and capture the output
+# Create a service principal and captures the output
 sp=$(az ad sp create-for-rbac --name 'sp-Azure-Advisor-Excel-Reporter' --years 1)
 
 # Extract the values from the service principal output

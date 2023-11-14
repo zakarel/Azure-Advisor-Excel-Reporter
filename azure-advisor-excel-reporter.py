@@ -56,14 +56,16 @@ def fetch_recommendations(advisor_client):
         recommendations = []
     return recommendations
 
-
 def process_recommendations(recommendations):
     '''This function processes the recommendations and returns a dataframe for each category and an overview dataframe.'''
     # Initialize an empty dictionary to hold the dataframes for each category
     dfs = {}
 
     # Initialize a dataframe for the overview
-    overview_df = pd.DataFrame(columns=['Category', 'High', 'Medium', 'Low'])
+    overview_df = pd.DataFrame(columns=['Category', 'High', 'Medium', 'Low', 'Total']) 
+    overview_df['High'] = overview_df['High'].astype(float)
+    overview_df['Medium'] = overview_df['Medium'].astype(float)
+    overview_df['Low'] = overview_df['Low'].astype(float)
 
     # Iterate over the recommendations
     for recommendation in recommendations:
@@ -73,7 +75,7 @@ def process_recommendations(recommendations):
         # If the category is not in the dictionary, initialize it with an empty dataframe
         if category not in dfs:
             dfs[category] = pd.DataFrame(columns=CATEGORY_COLUMNS)
-            new_row = pd.DataFrame([{'Category': category, 'High': 0, 'Medium': 0, 'Low': 0}], columns=['Category', 'High', 'Medium', 'Low'])
+            new_row = pd.DataFrame([{'Category': category, 'High': 0, 'Medium': 0, 'Low': 0, 'Total': 0}], columns=['Category', 'High', 'Medium', 'Low', 'Total'])
             overview_df = pd.concat([overview_df, new_row], ignore_index=True)
 
         # Extract the resource URI from the recommendation's id
@@ -100,19 +102,8 @@ def process_recommendations(recommendations):
 
         # Update the overview dataframe
         overview_df.loc[overview_df['Category'] == category, recommendation.impact] += 1
+        overview_df.loc[overview_df['Category'] == category, 'Total'] += 1
 
-        # Calculate the percentages in the overview dataframe
-        overview_df['High'] = (overview_df['High'] / (overview_df['High'] + overview_df['Medium'] + overview_df['Low'])) * 100
-        overview_df['Medium'] = (overview_df['Medium'] / (overview_df['High'] + overview_df['Medium'] + overview_df['Low'])) * 100
-        overview_df['Low'] = (overview_df['Low'] / (overview_df['High'] + overview_df['Medium'] + overview_df['Low'])) * 100
-
-        # Format the 'High', 'Medium', and 'Low' columns as percentages
-        styled_overview_df = overview_df.style.format({
-            'High': '{:.2f}%',
-            'Medium': '{:.2f}%',
-            'Low': '{:.2f}%'
-        })
-        
     return overview_df, dfs
 
 def write_to_excel(overview_df, dfs):
@@ -151,9 +142,9 @@ def write_to_excel(overview_df, dfs):
                 # Add a hyperlink to the corresponding sheet
                 worksheet.write_url(row_num + 1, col_num, f"internal:'{value}'!A1", string=value)
             else:
-                # Add the '%' sign to the 'High', 'Medium', and 'Low' columns
-                worksheet.write(row_num + 1, col_num, f"{value:.2f}%")
-
+                # Write the 'High', 'Medium', and 'Low' values as numeric values
+                worksheet.write_number(row_num + 1, col_num, value)
+    
     # Add autofilter
     worksheet.autofilter(0, 0, overview_df.shape[0], overview_df.shape[1] - 1)
 
@@ -169,7 +160,7 @@ def write_to_excel(overview_df, dfs):
         })
     chart.set_title({'name': 'Azure-Advisor-Excel-Reporter by Category (%)'})
     chart.set_x_axis({'name': 'Category'})
-    chart.set_y_axis({'name': 'Percentage'})
+    chart.set_y_axis({'name': 'Amount'})
     worksheet.insert_chart('F2', chart , {'x_scale': 2, 'y_scale': 2})
 
     # Write each category dataframe to a separate sheet in the Excel file
